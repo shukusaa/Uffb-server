@@ -8,11 +8,11 @@ const rateLimit = require('express-rate-limit');
 const compression = require('compression');
 require('dotenv').config();
 
-const app = express(); // <-- DOIT être avant tout app.use
+const app = express(); // DOIT être avant tout app.use
 
 // ===== COUCHE SÉCURITÉ HÉBERGEMENT =====
-app.use(helmet()); // Protège headers HTTP
-app.use(compression()); // Compresse réponses
+app.use(helmet());
+app.use(compression());
 
 // Anti-brute force : max 100 requêtes / 15min par IP
 const limiter = rateLimit({
@@ -39,10 +39,23 @@ app.use(express.json({ limit: '10mb' }));
 // Sert dossier uploads avec chemin absolu
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+// ===== TEST SERVEUR =====
+app.get('/', (req, res) => {
+  res.json({ 
+    status: 'UFFB Server OK ✅', 
+    ia: IA_CONFIG ? IA_CONFIG.conseil() : 'IA pas encore chargée',
+    port: PORT || process.env.PORT || 3000
+  });
+});
+
 // ===== MONGODB =====
-mongoose.connect(process.env.MONGO_URL || 'mongodb://127.0.0.1:27017/uffb')
-  .then(() => console.log('MongoDB OK'))
-  .catch(e => console.log('MongoDB ERREUR:', e));
+// ===== MONGODB =====
+mongoose.connect(process.env.MONGO_URL)
+  .then(() => console.log('MongoDB OK ✅ Connecté à uffb_db'))
+  .catch(e => {
+    console.log('MongoDB ERREUR:', e.message);
+    process.exit(1);
+  });
 
 // ===== SCHEMAS =====
 const Produit = mongoose.model('Produit', {
@@ -63,11 +76,11 @@ const Chat = mongoose.model('Chat', {
 
 // ===== IA ADAPTATIVE "UFFB BRAIN" =====
 const IA_CONFIG = {
-  projets: [], // Le serveur apprend tes projets ici
-  rythme: 'normal', // normal | rush | maintenance
+  projets: [],
+  rythme: 'normal',
   apprendre: function(action, data) {
     this.projets.push({ action, data, date: new Date() });
-    if(this.projets.length > 50) this.projets.shift(); // garde 50 derniers
+    if(this.projets.length > 50) this.projets.shift();
     this.ajusterRythme();
     console.log(`[IA] Action apprise: ${action}`);
   },
@@ -96,38 +109,62 @@ app.get('/api/ia/status', (req, res) => {
 
 // ===== API PRODUITS =====
 app.get('/api/produits', async (req, res) => {
-  const produits = await Produit.find().sort({ createdAt: -1 });
-  res.json(produits);
+  try {
+    const produits = await Produit.find().sort({ createdAt: -1 });
+    res.json(produits);
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 app.post('/api/produits', async (req, res) => {
-  const p = new Produit(req.body);
-  await p.save();
-  IA_CONFIG.apprendre('produit_ajout', p.nom);
-  res.json(p);
+  try {
+    const p = new Produit(req.body);
+    await p.save();
+    IA_CONFIG.apprendre('produit_ajout', p.nom);
+    res.json(p);
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 app.delete('/api/produits/:id', async (req, res) => {
-  await Produit.findByIdAndDelete(req.id);
-  res.json({ ok: true });
+  try {
+    await Produit.findByIdAndDelete(req.params.id); // ✅ CORRIGÉ ICI
+    res.json({ ok: true });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // ===== API COMMANDES =====
 app.post('/api/commandes', async (req, res) => {
-  const c = new Commande(req.body);
-  await c.save();
-  IA_CONFIG.apprendre('commande', c.total);
-  res.json(c);
+  try {
+    const c = new Commande(req.body);
+    await c.save();
+    IA_CONFIG.apprendre('commande', c.total);
+    res.json(c);
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 app.get('/api/commandes', async (req, res) => {
-  const commandes = await Commande.find().sort({ date: -1 });
-  res.json(commandes);
+  try {
+    const commandes = await Commande.find().sort({ date: -1 });
+    res.json(commandes);
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 app.get('/api/commandes/:id', async (req, res) => {
-  const c = await Commande.findById(req.params.id);
-  res.json(c);
+  try {
+    const c = await Commande.findById(req.params.id);
+    res.json(c);
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // ===== UPLOAD PHOTO =====
@@ -137,23 +174,33 @@ app.post('/api/upload', upload.single('photo'), (req, res) => {
 
 // ===== CHAT =====
 app.post('/api/chat', async (req, res) => {
-  const msg = new Chat({ ...req.body, date: new Date() });
-  await msg.save();
-  IA_CONFIG.apprendre('chat', req.body.from);
-  res.json(msg);
+  try {
+    const msg = new Chat({ ...req.body, date: new Date() });
+    await msg.save();
+    IA_CONFIG.apprendre('chat', req.body.from);
+    res.json(msg);
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 app.get('/api/chat/:tel', async (req, res) => {
-  const msgs = await Chat.find({ tel: req.params.tel }).sort({ date: 1 });
-  res.json(msgs);
+  try {
+    const msgs = await Chat.find({ tel: req.params.tel }).sort({ date: 1 });
+    res.json(msgs);
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // ===== SÉCURITÉ SUPPLÉMENTAIRE =====
-// Cache les erreurs serveur en prod
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ error: 'Erreur serveur' });
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, '0.0.0.0', () => console.log(`Serveur UFFB port ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`Serveur UFFB lancé sur port ${PORT}`);
+  console.log(`IA Rythme actuel: ${IA_CONFIG.conseil()}`);
+});

@@ -36,11 +36,6 @@ const upload = multer({
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
-const morgan = require('morgan');
-
-// Logger chaque requête : méthode + URL + status + temps
-app.use(morgan(':method :url :status :response-time ms - :res[content-length]'));
-
 // Sert dossier uploads avec chemin absolu
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 

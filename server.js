@@ -107,6 +107,7 @@ app.get('/api/ia/status', (req, res) => {
   });
 });
 
+
 // ===== API PRODUITS =====
 app.get('/api/produits', async (req, res) => {
   try {
@@ -116,6 +117,55 @@ app.get('/api/produits', async (req, res) => {
     res.status(500).json({ error: e.message });
   }
 });
+// STATS DASHBOARD
+app.get('/api/stats', async (req, res) => {
+  try {
+    const db = client.db('uffb');
+    const [cmds, produits] = await Promise.all([
+      db.collection('commandes').countDocuments(),
+      db.collection('produits').countDocuments()
+    ]);
+    const clients = [...new Set((await db.collection('commandes').find().toArray()).map(c=>c.clientTel))].length;
+    const ventes = await db.collection('commandes').aggregate([
+      {$match: {date: {$gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1)}}},
+      {$group: {_id: null, total: {$sum: '$total'}}}
+    ]).toArray();
+    res.json({commandes: cmds, produits, clients, ventes: ventes[0]?.total || 0});
+  } catch(e) {res.status(500).json({error: e.message})}
+});
+
+// PRODUITS CRUD
+app.get('/api/produits', async (req, res) => {
+  const produits = await client.db('uffb').collection('produits').find().toArray();
+  res.json(produits);
+});
+app.post('/api/produits', async (req, res) => {
+  const result = await client.db('uffb').collection('produits').insertOne({...req.body, date: new Date()});
+  res.json(result);
+});
+app.put('/api/produits/:id', async (req, res) => {
+  const {ObjectId} = require('mongodb');
+  const result = await client.db('uffb').collection('produits').updateOne({_id: new ObjectId(req.params.id)}, {$set: req.body});
+  res.json(result);
+});
+app.delete('/api/produits/:id', async (req, res) => {
+  const {ObjectId} = require('mongodb');
+  const result = await client.db('uffb').collection('produits').deleteOne({_id: new ObjectId(req.params.id)});
+  res.json(result);
+});
+
+// COMMANDES + CHAT
+app.get('/api/commandes', async (req, res) => {
+  const cmds = await client.db('uffb').collection('commandes').find().sort({date: -1}).toArray();
+  res.json(cmds);
+});
+app.get('/api/chat', async (req, res) => {
+  const msgs = await client.db('uffb').collection('chat').find({tel: req.query.tel}).sort({date: 1}).toArray();
+  res.json(msgs);
+});
+app.post('/api/chat', async (req, res) => {
+  await client.db('uffb').collection('chat').insertOne({...req.body, date: new Date()});
+  res.json({ok: true});
 
 app.post('/api/produits', async (req, res) => {
   try {

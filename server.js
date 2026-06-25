@@ -250,6 +250,31 @@ app.get('/api/chat/:tel', async (req, res) => {
   } catch(e) {
     res.status(500).json({ error: e.message });
   }
+});// Route stats pour le dashboard admin
+app.get('/stats', async (req, res) => {
+  try {
+    const totalCommandes = await Commande.countDocuments();
+    const totalProduits = await Produit.countDocuments();
+    const totalClients = await Message.distinct('tel', {tel: {$ne: null}}).length;
+    
+    // Ventes du mois en cours
+    const debutMois = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    const ventesAgg = await Commande.aggregate([
+      {$match: {date: {$gte: debutMois}, statut: {$ne: 'Annulée'}}},
+      {$group: {_id: null, total: {$sum: "$total"}}}
+    ]);
+    const ventesMois = ventesAgg[0]?.total || 0;
+
+    res.json({
+      commandes: totalCommandes,
+      produits: totalProduits, 
+      clients: totalClients,
+      ventes: ventesMois
+    });
+  } catch(e) {
+    console.log('Erreur /stats:', e.message);
+    res.status(500).json({error: e.message});
+  }
 });
 
 // ===== ERROR HANDLER =====
@@ -257,7 +282,31 @@ app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ error: 'Erreur serveur' });
 });
+// Route stats pour le dashboard admin
+app.get('/stats', async (req, res) => {
+  try {
+    const totalCommandes = await Commande.countDocuments();
+    const totalProduits = await Produit.countDocuments();
+    const totalClients = await Message.distinct('tel', {tel: {$ne: null}}).length;
 
+    const debutMois = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    const ventesAgg = await Commande.aggregate([
+      {$match: {date: {$gte: debutMois}, statut: {$ne: 'Annulée'}}},
+      {$group: {_id: null, total: {$sum: "$total"}}}
+    ]);
+    const ventesMois = ventesAgg[0]?.total || 0;
+
+    res.json({
+      commandes: totalCommandes,
+      produits: totalProduits,
+      clients: totalClients,
+      ventes: ventesMois
+    });
+  } catch(e) {
+    console.log('Erreur /stats:', e.message);
+    res.status(500).json({error: e.message});
+  }
+});
 app.listen(PORT, () => {
   console.log(`Serveur UFFB lancé sur port ${PORT}`);
   console.log(`IA V1 Rythme: ${IA_CONFIG.conseil()}`);

@@ -96,7 +96,7 @@ const IA_CONFIG = {
     if(this.rythme === 'maintenance') return 'Mode calme: Faire backup MongoDB';
     return 'Mode normal: Tout OK';
   }
-};
+});
 
 // Route pour que l’IA te parle
 app.get('/api/ia/status', (req, res) => {

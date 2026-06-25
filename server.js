@@ -53,7 +53,7 @@ app.get('/', (req, res) => {
 mongoose.connect(process.env.MONGO_URL)
   .then(() => console.log('MongoDB OK ✅ Connecté à uffb_db'))
   .catch(e => {
-    console.log('MongoDB ERREUR:', e.message);
+    console.log('MongoDB ERREUR:', e.message));
     process.exit(1);
   });
 

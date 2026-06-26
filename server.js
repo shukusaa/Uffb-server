@@ -118,8 +118,7 @@ const IA_CONFIG = {
 const GEMINI_KEY = process.env.GEMINI_API_KEY;
 const IA_V2_ENABLED =!!GEMINI_KEY;
 const genAI = IA_V2_ENABLED? new GoogleGenerativeAI(GEMINI_KEY) : null;
-const model = IA_V2_ENABLED? genAI.getGenerativeModel({ model: "gemini-1.5-flash" }) : null;
-
+const model = IA_V2_ENABLED? genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" }) : null;
 async function repondreIA(messageClient, tel) {
   if(!IA_V2_ENABLED) return "Merci pour ton message! Un agent UFFB te répond vite.";
 
